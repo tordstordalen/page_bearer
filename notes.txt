@@ -1,0 +1,104 @@
+The predecessor query works as follows: 
+ - We are given a query v
+ - First, we binary search over the y-values of the segments 
+   to determine which segment contains the values that are closest
+   to v 
+ - This segment is represented by 
+    l(x) = ax + b
+ - We solve ax + b = v for x (e.g., x = (v - b)/x) and let x' = int(x). 
+ - The idea is that l(x') is close to be being 
+
+
+What exactly is the problem.
+We are maintaining a bunch of points (i,v(i)) where i is the rank and
+v(i) is the value of the element with rank(i). We want to support member,
+rank, and range queries. We also want to support insertions and deletions. 
+When we do updates, we can change the rank of a linear number of elements.
+Furthermore, our index consists of a number of line segments. We are 
+given a line segment that we know contains the predecessor of our point.
+Each point represented by the line segment is a distance at most epsilon
+from the line. So, given that we have a value v and a 
+line l(x) = ax + b, we have to determine what the predecessor is on the 
+segment. 
+
+One of the points on l(x) is the predecessor of v. 
+And each of these points are located at integral 
+indices x. However, their y-values may differ up to
+epsilon from the line.
+
+We have the value v +- epsilon. And we want to divide
+it by something so that everything in the range [v-epsilon, v+epsilon] 
+truncates to the same thing. That is not possible. No matter what divisor
+we chose, we can pick v to be just on the border, so the -epsilon and +epsilon differ. 
+
+So, v' is possibly not an integer. the largest possible value it can 
+represent is the largest integer smaller than v' + epsilon = int(v') + epsilon.
+The smallest possible value it can represent is the smallest integer greater
+v'epsilon = ceil(v') - epsilon. The true value of l(x') represents is in 
+[ceil(v') - epsilon, floor(v') + epsilon]. There are three possible cases that 
+we need to check. 
+
+After we hash them we can get the following situations. 
+They are all negative; no worries. This cannot be the page bearer.
+Some of them can be positive. In which case we need to distinguish true 
+positives from false positives. In the page bearer structure, we need to store
+the actual page bearer. So we get to an index in the hash table. 
+Either this is a false bage bearer location. Otherwise, it is a real 
+page bearer location. And we can also check if it is within the range v' +- epsilon.
+If it isn't, then the entry belongs to something else. 
+If it is, it still might not be the page bearer, if it is too large. 
+
+Maybe each page should store the largest value it stores as well.
+Such that when we arrive on a page we know immediately if it is the right one or not. 
+
+
+If every page bearer knows about the next and previous page bearer.
+Then, when we arrive on a page we can tell if it is the right one.
+Also, if we delete an element that is a page bearer, we know what page to 
+move the elements to. 
+And if we add a new element that is a page bearer, we simply find its page 
+and split its page. 
+
+How can we find rank? The page bearer data structure does not tell you 
+which rank the thing you found has. Because there can be many elements 
+v s.t. floor(v/epsilon) is the same.
+
+
+I think it is important to note that the points are monotonically increasing
+because they have been sorted, and are distinct. So they cannot jitter around 
+randomly. 
+
+Query: 
+Find x s.t. l(x) = v + epsilon
+Let x' = floor(x)
+
+# x is the largest possible point that could represent v. Because
+anything further to the right will be strictly greater than v+epsilon, 
+and so the point associated with it cannot represent x. Thus x' is the 
+largest possible thing that can be the predecessor of x. 
+
+For rank x', the element that it can represent
+is anywhere in the range R(v) = [l(x')-e, l(x')+e]
+We need to hash irrelevant of the e. 
+
+Let l(x') = i*e + r_int + r_real, for 0 <= r_int < epsilon and 0 <= r < 1  
+Thus hash-input of l(x') is i
+if true_val(x) is more than epsilon - r_int - r_real above,
+then the input should be i+1 
+Or the input could be i-1 if it is more than r_int + r_real under
+Or the input could be i.
+
+So basically, do i = int(l(x'))/epsilon
+and try with i, i+1, and i-1. 
+
+Either we get to a true page, i.e. a page belonging to a value in R(v).
+And if we do, we are not far from the page containing the value. 
+Or we get to a page with an ID that is not i,i+1 or i-1. In that case, 
+we navigate backwards to the previous point, x'-1, and repeat the process.
+We do this indefinitely, until we actually encounter a page bearer 
+
+I still have no idea how to support rank. 
+
+If every page stores its page_id and a pointer to a vector we are good to go
+This is the simples way to solve this problem, I think. 
+
