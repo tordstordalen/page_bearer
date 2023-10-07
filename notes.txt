@@ -102,3 +102,16 @@ I still have no idea how to support rank.
 If every page stores its page_id and a pointer to a vector we are good to go
 This is the simples way to solve this problem, I think. 
 
+
+
+---- Hashing ---- 
+// for hash function H
+    //const u128 a = init_hash(0); 
+    //const u128 b = init_hash(1);
+
+    // Strongly universal multiply shift, Section 3.3 in https://doi.org/10.48550/arXiv.1504.06804
+    // We cannot use "normal" multiply shift, because we need the hash values to be uniformly distributed. 
+    //u64 H(u64 x){
+    //    u128 tmp = (a*x + b) >> (128 - 64); 
+    //    return (u64)tmp;
+    //}
