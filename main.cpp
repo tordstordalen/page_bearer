@@ -8,22 +8,31 @@
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
+#include <chrono>
 
 using std::pair; 
 
 typedef std::mt19937 MTRng;  
 
-typedef int64_t  i64;
-typedef int32_t  i32;
-typedef uint64_t u64; 
-typedef uint32_t u32;
+typedef int64_t   i64;
+typedef int32_t   i32;
+typedef uint64_t  u64; 
+typedef uint32_t  u32;
 
 const u32 seed_val = 53315113;    
 MTRng rng;
 
+
+u64 nowNanos(){
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
 struct MapAndVecPBS {
+
+
     std::unordered_map<u64, std::vector<u64>> map;
     const u64 epsilon = 8;
+    const char *structure_name = "PBS using std::map and std::vec";
 
     MapAndVecPBS(){
         std::vector<u64> v; 
@@ -37,7 +46,7 @@ struct MapAndVecPBS {
     // each input to be even for this reason. Note that a must be a uniformly
     // chosen integer at runtime for theoretical guarantees. 
     u64 pbHash(u64 x) {
-        x &= 0xFFFFFFFE; 
+        //x &= 0xFFFFFFFE; 
         const u64 a = 2187650952262969439;
         //const u64 b = 2349073786287317910;
         return (a * x); // + b;
@@ -92,7 +101,7 @@ struct MapAndVecPBS {
         bool found = false;
         for (auto e : elements){
             if (e >= best && e <= x) found = true, best = e;
-        }
+        }std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         return {found, best};
     }
 
@@ -118,9 +127,11 @@ struct MapAndVecPBS {
         std::cout << "\n-------------------------\n";
     }
 
+
     void printStatistics(){
         u64 ratio = size()/epsilon;
-        std::cout << "#buckets = " << map.size() << "\n"; 
+        u64 n_buckets = map.size();
+        std::cout << "#buckets = " << n_buckets << "\n"; 
         std::cout << "expected #buckets = " << ratio << "\n"; 
         std::cout << "the ratio is " << ((double)map.size())/((double)ratio) << "\n";
 
@@ -128,11 +139,19 @@ struct MapAndVecPBS {
         for (auto& [key,val] : map) bucket_lengths.push_back(val.size());
         std::sort(bucket_lengths.begin(), bucket_lengths.end());
 
-        std::cout << "Average bucket length: " << (double)size()/(double)map.size() << "\n";
+
+        u64 average_bucket_length = (double)size()/(double)map.size();
+        u64 max_bucket_length = bucket_lengths.back();
+        std::cout << "Average bucket length: " << average_bucket_length << "\n";
         std::cout << "Median  bucket length: " << bucket_lengths[bucket_lengths.size()/2] << "\n";
-        std::cout << "Largest bucket length: " << bucket_lengths.back() << "\n";
+        std::cout << "Largest bucket length: " << max_bucket_length << "\n";
 
+        std::vector<u64> lengths_summary(bucket_lengths.back() + 1);
 
+        for (auto e : bucket_lengths) lengths_summary[e]++;
+        for (auto e : lengths_summary) std::cout << e << " ";
+        std::cout << "\n";
+    
     }
 }; // PageBearerStructure end
 
@@ -142,6 +161,7 @@ struct TestStructure {
     std::set<u64> data;
     PBS pbs;
     const u64 epsilon = 8;
+    u64 total_time = 0;
 
     TestStructure(){
         data.insert(0);
@@ -166,12 +186,15 @@ struct TestStructure {
     bool testPredecessor(u64 x){
         
         u64 real_predecessor = predecessor(x);
-        
+        u64 ta,tb;
         u64 pbs_pred;
         auto pt = pbIterator(x);
         while (pt != data.begin()){
             pt--;
+            ta = nowNanos();
             auto [found,pred] = pbs.tryPredecessorInPage(x, *pt/epsilon);
+            tb = nowNanos();
+            total_time += tb - ta;
             if (found) {
                 pbs_pred = pred;
                 break;
@@ -188,9 +211,13 @@ struct TestStructure {
         if (x == 0) std::cout << "Inserting 0...\n";
         auto pt = pbIterator(x);
         auto inserted = false;
+        u64 ta,tb;
         while (!inserted && pt != data.begin()){
             pt--;
+            ta = nowNanos();
             inserted |= pbs.tryInsertInPage(x,*pt/epsilon);
+            tb = nowNanos();
+            total_time += tb - ta;
             //if (inserted) std::cout << "Inserted " << x << " at id " << *pt/epsilon << "\n";
 
         }
@@ -214,6 +241,14 @@ struct TestStructure {
         pbs.printStatistics();
     }
 
+    void printTimeStatistics(){
+        std::cout << "Total time taken by PBS structure (milliseconds): " << (double)total_time/1000000 << "\n";
+    }
+
+    void printStructureInfo(){
+        std::cout << "Running test with structure '" << pbs.structure_name << "'\n";
+    }
+
 };
 
 template<typename PBS>
@@ -229,12 +264,13 @@ void runInsertAndPredecessorTest(u64 n){
     u64 n_error = 0; 
 
 
+    ts.printStructureInfo();
+
     
     std::vector<u64> data; 
     for (int i = 0; i < n; i++){
         data.push_back(uniform(rng));
     }
-
 
     for (auto e : data){
         if (e & 0b1) {
@@ -247,7 +283,10 @@ void runInsertAndPredecessorTest(u64 n){
         }
     }
 
-    ts.printSizeStatistics();
+    ts.printTimeStatistics();
+    //ts.printSizeStatistics();
+
+   
     //std::cout << "total size should be " << n_updates << " and is " << ts.pbsSize() << "\n";
 
     std::cout << "Total queries: " << n_queries << "\nWrong answers: " << n_error << "\n";
@@ -256,6 +295,7 @@ void runInsertAndPredecessorTest(u64 n){
 struct BBST_PBS {
 
     std::set<u64> data;
+    const char *structure_name = "PBS using a std::set";
 
     pair<bool,u64> tryPredecessorInPage(u64 x, u64 page_id){
         auto pt = data.upper_bound(x);
@@ -277,7 +317,7 @@ struct BBST_PBS {
 
 int main(void){
     
-    runInsertAndPredecessorTest<MapAndVecPBS>(1000000);
+    runInsertAndPredecessorTest<MapAndVecPBS>(10000000);
     
     return 0;
 }
