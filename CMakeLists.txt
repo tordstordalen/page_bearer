@@ -5,4 +5,4 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "-O3")
 
 
-add_executable(PageBearer main.cpp)
+add_executable(PageBearer main.cpp )
